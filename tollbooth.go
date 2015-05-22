@@ -2,9 +2,9 @@
 package tollbooth
 
 import (
-	"github.com/didip/tollbooth/config"
-	"github.com/didip/tollbooth/errors"
-	"github.com/didip/tollbooth/libstring"
+	"github.com/landonia/tollbooth/config"
+	"github.com/landonia/tollbooth/errors"
+	"github.com/landonia/tollbooth/libstring"
 	"net/http"
 	"strings"
 	"time"
@@ -30,30 +30,7 @@ func buildKeys(limiter *config.Limiter, r *http.Request) [][]string {
 	path := r.URL.Path
 	sliceKeys := make([][]string, 0)
 
-	if limiter.Methods != nil && limiter.Headers != nil && limiter.BasicAuthUsers != nil {
-		// Limit by HTTP methods and HTTP headers+values and Basic Auth credentials.
-		if libstring.StringInSlice(limiter.Methods, r.Method) {
-			for headerKey, headerValues := range limiter.Headers {
-				if (headerValues == nil || len(headerValues) <= 0) && r.Header.Get(headerKey) != "" {
-					// If header values are empty, rate-limit all request with headerKey.
-					username, _, ok := r.BasicAuth()
-					if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, username})
-					}
-
-				} else if len(headerValues) > 0 && r.Header.Get(headerKey) != "" {
-					// If header values are not empty, rate-limit all request with headerKey and headerValues.
-					for _, headerValue := range headerValues {
-						username, _, ok := r.BasicAuth()
-						if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-							sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, headerValue, username})
-						}
-					}
-				}
-			}
-		}
-
-	} else if limiter.Methods != nil && limiter.Headers != nil {
+	if limiter.Methods != nil && limiter.Headers != nil {
 		// Limit by HTTP methods and HTTP headers+values.
 		if libstring.StringInSlice(limiter.Methods, r.Method) {
 			for headerKey, headerValues := range limiter.Headers {
@@ -67,15 +44,6 @@ func buildKeys(limiter *config.Limiter, r *http.Request) [][]string {
 						sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, headerKey, headerValue})
 					}
 				}
-			}
-		}
-
-	} else if limiter.Methods != nil && limiter.BasicAuthUsers != nil {
-		// Limit by HTTP methods and Basic Auth credentials.
-		if libstring.StringInSlice(limiter.Methods, r.Method) {
-			username, _, ok := r.BasicAuth()
-			if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-				sliceKeys = append(sliceKeys, []string{remoteIP, path, r.Method, username})
 			}
 		}
 
@@ -100,12 +68,6 @@ func buildKeys(limiter *config.Limiter, r *http.Request) [][]string {
 			}
 		}
 
-	} else if limiter.BasicAuthUsers != nil {
-		// Limit by Basic Auth credentials.
-		username, _, ok := r.BasicAuth()
-		if ok && libstring.StringInSlice(limiter.BasicAuthUsers, username) {
-			sliceKeys = append(sliceKeys, []string{remoteIP, path, username})
-		}
 	} else {
 		// Default: Limit by remoteIP and path.
 		sliceKeys = append(sliceKeys, []string{remoteIP, path})
